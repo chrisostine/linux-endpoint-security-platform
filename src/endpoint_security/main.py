@@ -1,13 +1,16 @@
+
 import platform
 import socket
 import datetime
+import json
 from pathlib import Path
+from endpoint_security.processes import collect_running_processes
 
 
 def get_system_information():
     """Collect basic Linux system information."""
 
-    information = {
+    return {
         "hostname": socket.gethostname(),
         "operating_system": platform.system(),
         "kernel_version": platform.release(),
@@ -18,57 +21,61 @@ def get_system_information():
         ).isoformat(),
     }
 
-    return information
 
+def get_linux_distribution(os_release_path=Path("/etc/os-release")):
+    """Read Linux distribution information safely."""
 
-def get_linux_distribution():
-    """Read Linux distribution information."""
+    try:
+        content = os_release_path.read_text(encoding="utf-8")
 
-    os_release = Path("/etc/os-release")
+        for line in content.splitlines():
+            if line.startswith("PRETTY_NAME="):
+                return line.split("=", 1)[1].strip().strip('"')
 
-    if not os_release.exists():
-        return "Unknown"
-
-    for line in os_release.read_text().splitlines():
-        if line.startswith("PRETTY_NAME="):
-            return line.split("=", 1)[1].strip('"')
+    except (OSError, UnicodeError):
+        pass
 
     return "Unknown"
 
 
-def get_system_uptime():
-    """Read system uptime from the Linux proc filesystem."""
+def get_system_uptime(uptime_path=Path("/proc/uptime")):
+    """Read system uptime safely."""
 
-    uptime_file = Path("/proc/uptime")
+    try:
+        content = uptime_path.read_text(encoding="utf-8")
+        uptime_seconds = float(content.split()[0])
 
-    if not uptime_file.exists():
+        return int(uptime_seconds)
+
+    except (OSError, UnicodeError, ValueError, IndexError):
         return None
 
-    uptime_seconds = float(uptime_file.read_text().split()[0])
 
-    return int(uptime_seconds)
-
-
-def get_memory_information():
-    """Collect total and available system memory."""
-
-    memory_file = Path("/proc/meminfo")
-
-    if not memory_file.exists():
-        return {}
+def get_memory_information(memory_path=Path("/proc/meminfo")):
+    """Collect total and available memory safely."""
 
     memory = {}
 
-    for line in memory_file.read_text().splitlines():
-        if line.startswith(("MemTotal:", "MemAvailable:")):
-            key, value = line.split(":", 1)
-            memory[key] = int(value.strip().split()[0])
+    try:
+        lines = memory_path.read_text(encoding="utf-8").splitlines()
+
+        for line in lines:
+            if line.startswith(("MemTotal:", "MemAvailable:")):
+                key, value = line.split(":", 1)
+
+                try:
+                    memory[key] = int(value.strip().split()[0])
+                except (ValueError, IndexError):
+                    continue
+
+    except (OSError, UnicodeError):
+        return {}
 
     return memory
 
 
 def collect_all_system_information():
-    """Combine all system information into one result."""
+    """Collect system information and running process details."""
 
     information = get_system_information()
 
@@ -76,12 +83,14 @@ def collect_all_system_information():
     information["uptime_seconds"] = get_system_uptime()
     information["memory_kb"] = get_memory_information()
 
+    processes = collect_running_processes()
+
+    information["process_count"] = len(processes)
+    information["processes"] = processes
+
     return information
 
 
 if __name__ == "__main__":
-    import json
-
     results = collect_all_system_information()
-
     print(json.dumps(results, indent=4))
