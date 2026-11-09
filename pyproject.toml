@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linux-endpoint-security-platform"
+version = "0.1.0"
+description = "An open-source Linux endpoint security and investigation platform."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    {name = "Project Contributors"}
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
