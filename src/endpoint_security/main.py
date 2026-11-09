@@ -5,6 +5,7 @@ import datetime
 import json
 from pathlib import Path
 from endpoint_security.processes import collect_running_processes
+from endpoint_security.network import collect_network_connections
 
 
 def get_system_information():
@@ -75,7 +76,7 @@ def get_memory_information(memory_path=Path("/proc/meminfo")):
 
 
 def collect_all_system_information():
-    """Collect system information and running process details."""
+    """Collect system, process, and network information."""
 
     information = get_system_information()
 
@@ -83,12 +84,20 @@ def collect_all_system_information():
     information["uptime_seconds"] = get_system_uptime()
     information["memory_kb"] = get_memory_information()
 
+    # Collect running processes.
     processes = collect_running_processes()
 
     information["process_count"] = len(processes)
     information["processes"] = processes
 
+    # Collect network connections.
+    network_connections = collect_network_connections()
+
+    information["network_connection_count"] = len(network_connections)
+    information["network_connections"] = network_connections
+
     return information
+
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
+
 from endpoint_security.processes import (
     inspect_process,
     collect_running_processes,
@@ -66,38 +67,44 @@ class TestSystemInformation(unittest.TestCase):
         self.assertIn("distribution", information)
         self.assertIn("uptime_seconds", information)
         self.assertIn("memory_kb", information)
+        self.assertIn("process_count", information)
+        self.assertIn("processes", information)
+        self.assertIn("network_connection_count", information)
+        self.assertIn("network_connections", information)
+
+        self.assertEqual(
+            information["process_count"],
+            len(information["processes"]),
+        )
+
+        self.assertEqual(
+            information["network_connection_count"],
+            len(information["network_connections"]),
+        )
 
     def test_missing_distribution_file(self):
         with tempfile.TemporaryDirectory() as directory:
             missing_file = Path(directory) / "missing-os-release"
-
             result = get_linux_distribution(missing_file)
-
             self.assertEqual(result, "Unknown")
 
     def test_missing_uptime_file(self):
         with tempfile.TemporaryDirectory() as directory:
             missing_file = Path(directory) / "missing-uptime"
-
             result = get_system_uptime(missing_file)
-
             self.assertIsNone(result)
 
     def test_invalid_uptime_value(self):
         with tempfile.TemporaryDirectory() as directory:
             invalid_file = Path(directory) / "uptime"
             invalid_file.write_text("invalid-data")
-
             result = get_system_uptime(invalid_file)
-
             self.assertIsNone(result)
 
     def test_missing_memory_file(self):
         with tempfile.TemporaryDirectory() as directory:
             missing_file = Path(directory) / "missing-meminfo"
-
             result = get_memory_information(missing_file)
-
             self.assertEqual(result, {})
 
     def test_malformed_memory_information(self):
@@ -139,7 +146,6 @@ class TestSystemInformation(unittest.TestCase):
     def test_missing_process_returns_none(self):
         with tempfile.TemporaryDirectory() as directory:
             result = inspect_process(9999, Path(directory))
-
             self.assertIsNone(result)
 
     def test_collect_processes_returns_sorted_results(self):
